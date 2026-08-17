@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAM 3D Body Viewer</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: system-ui, sans-serif; color: #eee; }
+
+  /* ===== Split layout ===== */
+  #viewer-layout {
+    display: none; position: fixed; inset: 0; bottom: 40px;
+  }
+  #viewer-layout.visible {
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  #viewer-layout.no-video {
+    grid-template-columns: 1fr;
+  }
+  #canvas-wrap { position: relative; overflow: hidden; }
+  #canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+  #video-wrap { position: relative; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
+  #video-wrap.hidden { display: none; }
+  #video-player { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* Full-screen canvas fallback (before file load) */
+  #viewport-fs { display: block; width: 100vw; height: 100vh; }
+  #viewport-fs.hidden { display: none; }
+
+  /* ===== Drop zone ===== */
+  #dropzone {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(26,26,26,0.92); z-index: 10; cursor: pointer;
+  }
+  #dropzone.hidden { display: none; }
+  #dropzone-inner {
+    border: 2px dashed #555; border-radius: 16px; padding: 60px 80px; text-align: center;
+    transition: border-color 0.2s;
+  }
+  #dropzone.dragover #dropzone-inner { border-color: #42A5F5; }
+  #dropzone h2 { margin: 0 0 8px; font-weight: 400; font-size: 20px; }
+  #dropzone p { margin: 0; color: #888; font-size: 14px; }
+
+  /* ===== Controls bar ===== */
+  #controls {
+    position: fixed; bottom: 0; left: 0; right: 0; display: none; align-items: center;
+    gap: 10px; padding: 8px 16px; background: rgba(30,30,30,0.88);
+    backdrop-filter: blur(8px); z-index: 5; font-size: 13px; height: 40px; box-sizing: border-box;
+  }
+  #controls.visible { display: flex; }
+  #controls button {
+    background: none; border: 1px solid #555; color: #eee; border-radius: 4px;
+    padding: 4px 10px; cursor: pointer; font-size: 13px; white-space: nowrap;
+  }
+  #controls button:hover { border-color: #999; }
+  #controls button.active { border-color: #42A5F5; color: #42A5F5; }
+  #timeline { flex: 1; cursor: pointer; accent-color: #42A5F5; }
+  #controls select {
+    background: #2a2a2a; border: 1px solid #555; color: #eee; border-radius: 4px;
+    padding: 3px 4px; font-size: 13px;
+  }
+  #frame-display { min-width: 90px; text-align: center; font-variant-numeric: tabular-nums; }
+  #filename { position: fixed; top: 12px; left: 50px; font-size: 13px; color: #777; z-index: 5; display: none; }
+
+  /* ===== Hamburger button ===== */
+  #btn-hamburger {
+    position: fixed; top: 10px; left: 12px; z-index: 30;
+    background: rgba(30,30,30,0.7); border: 1px solid #555; color: #eee;
+    font-size: 22px; width: 36px; height: 36px; border-radius: 6px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    line-height: 1; backdrop-filter: blur(8px);
+  }
+  #btn-hamburger:hover { border-color: #999; background: rgba(50,50,50,0.8); }
+
+  /* ===== Sidebar ===== */
+  #sidebar {
+    position: fixed; top: 0; left: 0; width: 300px; height: 100%; z-index: 25;
+    background: #1e1e1e; border-right: 1px solid #333;
+    transform: translateX(-100%); transition: transform 0.25s ease;
+    overflow-y: auto; overflow-x: hidden;
+    display: flex; flex-direction: column;
+  }
+  #sidebar.open { transform: translateX(0); }
+
+  #sidebar-header {
+    padding: 12px 16px; border-bottom: 1px solid #333;
+    font-size: 14px; font-weight: 600; color: #aaa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #sidebar-header button {
+    background: none; border: none; color: #888; font-size: 20px; cursor: pointer; padding: 0 4px;
+  }
+  #sidebar-header button:hover { color: #eee; }
+
+  #sidebar-tree {
+    flex: 1; overflow-y: auto; padding: 8px 0;
+  }
+  #sidebar-loading {
+    padding: 20px 16px; color: #666; font-size: 13px;
+  }
+
+  .tree-year, .tree-month, .tree-day {
+    cursor: pointer; user-select: none;
+  }
+  .tree-year > .tree-label {
+    padding: 6px 16px; font-size: 14px; font-weight: 600; color: #ccc;
+  }
+  .tree-year > .tree-label:hover { background: #2a2a2a; }
+  .tree-month > .tree-label {
+    padding: 5px 16px 5px 32px; font-size: 13px; color: #aaa;
+  }
+  .tree-month > .tree-label:hover { background: #2a2a2a; }
+  .tree-day > .tree-label {
+    padding: 4px 16px 4px 48px; font-size: 13px; color: #888;
+  }
+  .tree-day > .tree-label:hover { background: #2a2a2a; }
+
+  .tree-children { display: none; }
+  .tree-children.expanded { display: block; }
+
+  .tree-file {
+    padding: 3px 16px 3px 64px; font-size: 12px; color: #8cb4ff;
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tree-file:hover { background: #2a2a2a; color: #aad4ff; }
+  .tree-file.active { background: #1a3a5c; color: #7cc4ff; }
+
+  .tree-label::before {
+    content: '\25B8'; display: inline-block; width: 14px; font-size: 10px; color: #666;
+  }
+  .expanded-marker > .tree-label::before { content: '\25BE'; }
+
+  /* Sidebar overlay to close on click-outside */
+  #sidebar-overlay {
+    position: fixed; inset: 0; z-index: 20; display: none; background: rgba(0,0,0,0.3);
+  }
+  #sidebar-overlay.visible { display: block; }
+</style>
+</head>
+<body>
+
+<!-- Full-screen canvas (shown before file load) -->
+<canvas id="viewport-fs"></canvas>
+
+<!-- Split layout (shown after file load) -->
+<div id="viewer-layout">
+  <div id="canvas-wrap"><canvas id="viewport-split"></canvas></div>
+  <div id="video-wrap"><video id="video-player" muted playsinline></video></div>
+</div>
+
+<div id="dropzone">
+  <div id="dropzone-inner">
+    <h2>Drop .sam3dbody file here</h2>
+    <p>or click to browse</p>
+  </div>
+</div>
+
+<button id="btn-hamburger" title="Browse files">&#9776;</button>
+
+<div id="sidebar-overlay"></div>
+<div id="sidebar">
+  <div id="sidebar-header">
+    <span>Files</span>
+    <button id="btn-sidebar-close">&times;</button>
+  </div>
+  <div id="sidebar-tree">
+    <div id="sidebar-loading">Loading file list...</div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="btn-play" title="Space">&#9654;</button>
+  <input id="timeline" type="range" min="0" max="0" value="0" step="1">
+  <span id="frame-display">0 / 0</span>
+  <select id="sel-fps" title="FPS">
+    <option value="24">24 fps</option>
+    <option value="30">30 fps</option>
+    <option value="60" selected>60 fps</option>
+  </select>
+  <select id="sel-speed" title="Speed">
+    <option value="0.25">0.25x</option>
+    <option value="0.5">0.5x</option>
+    <option value="1" selected>1x</option>
+    <option value="2">2x</option>
+  </select>
+  <button id="btn-loop" class="active" title="Loop">Loop</button>
+  <select id="sel-smooth" title="Smoothing">
+    <option value="0">No smooth</option>
+    <option value="0.3">Light</option>
+    <option value="0.5" selected>Medium</option>
+    <option value="0.7">Heavy</option>
+  </select>
+  <button id="btn-mute" title="Toggle audio">Muted</button>
+</div>
+
+<div id="filename"></div>
+
+<input id="file-input" type="file" accept=".sam3dbody" style="display:none">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="importmap">{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ===== NPY Parser =====
+function parseNpy(buffer) {
+  const view = new DataView(buffer);
+  const magic = String.fromCharCode(...new Uint8Array(buffer, 0, 6));
+  if (magic !== '\x93NUMPY') throw new Error('Not a valid NPY file');
+
+  const major = view.getUint8(6);
+  let headerLen, headerOffset;
+  if (major === 1) {
+    headerLen = view.getUint16(8, true);
+    headerOffset = 10;
+  } else {
+    headerLen = view.getUint32(8, true);
+    headerOffset = 12;
+  }
+
+  const headerBytes = new Uint8Array(buffer, headerOffset, headerLen);
+  const header = new TextDecoder().decode(headerBytes);
+
+  const descrMatch = header.match(/'descr'\s*:\s*'([^']+)'/);
+  const shapeMatch = header.match(/'shape'\s*:\s*\(([^)]+)\)/);
+  if (!descrMatch || !shapeMatch) throw new Error('Cannot parse NPY header');
+
+  const descr = descrMatch[1];
+  const shape = shapeMatch[1].split(',').map(s => s.trim()).filter(Boolean).map(Number);
+  const dataOffset = headerOffset + headerLen;
+
+  let data;
+  if (descr === '<f8' || descr === '=f8') {
+    data = new Float64Array(buffer, dataOffset);
+  } else if (descr === '<f4' || descr === '=f4') {
+    data = new Float32Array(buffer, dataOffset);
+  } else {
+    throw new Error('Unsupported dtype: ' + descr);
+  }
+
+  return { shape, data };
+}
+
+// ===== NPZ Loader =====
+async function loadNPZ(file) {
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+
+  const npyFile = zip.file('body_keypoints_3d.npy');
+  if (!npyFile) throw new Error('body_keypoints_3d.npy not found in archive');
+
+  const npyBuf = await npyFile.async('arraybuffer');
+  const { shape, data } = parseNpy(npyBuf);
+
+  return { data, numFrames: shape[0], numKeypoints: shape[1] };
+}
+
+// ===== Skeleton Definition =====
+const BONE_GROUPS = [
+  {
+    color: 0x4CAF50,
+    bones: [
+      [13,11],[11,9],[5,7],[7,62],
+      [13,15],[13,16],[13,17],
+      [41,40],[40,39],[39,38],[38,37],
+      [62,61],[61,60],[60,59],[59,58],
+    ]
+  },
+  {
+    color: 0xFF9800,
+    bones: [
+      [14,12],[12,10],[6,8],[8,41],
+      [14,18],[14,19],[14,20],
+      [41,24],[24,23],[23,22],[22,21],
+      [62,45],[45,44],[44,43],[43,42],
+    ]
+  },
+  {
+    color: 0x42A5F5,
+    bones: [
+      [9,10],[5,9],[6,10],[5,6],
+      [1,2],[0,1],[0,2],[1,3],[2,4],[3,5],[4,6],
+      [41,32],[32,31],[31,30],[30,29],
+      [62,53],[53,52],[52,51],[51,50],
+    ]
+  },
+  {
+    color: 0xE91E63,
+    bones: [
+      [41,28],[28,27],[27,26],[26,25],
+      [62,49],[49,48],[48,47],[47,46],
+    ]
+  },
+  {
+    color: 0xF44336,
+    bones: [
+      [41,36],[36,35],[35,34],[34,33],
+      [62,57],[57,56],[56,55],[55,54],
+    ]
+  },
+];
+
+// ===== Three.js Scene =====
+let scene, camera, renderer, controls;
+let activeCanvas = document.getElementById('viewport-fs');
+let usingSplitLayout = false;
+
+function initScene() {
+  renderer = new THREE.WebGLRenderer({ canvas: activeCanvas, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 100);
+  camera.position.set(0, 0, 2);
+
+  controls = new OrbitControls(camera, activeCanvas);
+  controls.target.set(0, 0, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.1;
+  controls.update();
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(2, 4, 3);
+  scene.add(dirLight);
+
+  const grid = new THREE.GridHelper(2, 20, 0x444444, 0x333333);
+  scene.add(grid);
+
+  window.addEventListener('resize', handleResize);
+}
+
+function handleResize() {
+  if (usingSplitLayout) {
+    const wrap = document.getElementById('canvas-wrap');
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  } else {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+}
+
+function switchToSplitLayout(hasVideo) {
+  const fsCvs = document.getElementById('viewport-fs');
+  const layout = document.getElementById('viewer-layout');
+  const videoWrap = document.getElementById('video-wrap');
+  const wrap = document.getElementById('canvas-wrap');
+
+  // fsCvs is renderer.domElement — don't hide it, it gets moved into the split layout
+  layout.classList.add('visible');
+
+  if (hasVideo) {
+    layout.classList.remove('no-video');
+    videoWrap.classList.remove('hidden');
+  } else {
+    layout.classList.add('no-video');
+    videoWrap.classList.add('hidden');
+  }
+
+  // Only move the renderer canvas into the wrap on first switch
+  if (!usingSplitLayout) {
+    const splitCvs = document.getElementById('viewport-split');
+    if (splitCvs && splitCvs.parentNode) {
+      splitCvs.parentNode.replaceChild(renderer.domElement, splitCvs);
+    } else {
+      wrap.appendChild(renderer.domElement);
+    }
+    // Clear the old id so #viewport-fs.hidden CSS no longer applies
+    renderer.domElement.removeAttribute('id');
+    renderer.domElement.classList.remove('hidden');
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+
+    controls.dispose();
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.update();
+
+    activeCanvas = renderer.domElement;
+  }
+
+  usingSplitLayout = true;
+
+  // Resize to fit the column
+  requestAnimationFrame(() => {
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+}
+
+// ===== Skeleton Rendering =====
+let keypointMesh = null;
+const boneLinesArr = [];
+const dummy = new THREE.Object3D();
+const NUM_KP = 70;
+
+const rawPositions = new Float32Array(NUM_KP * 3);
+const framePositions = new Float32Array(NUM_KP * 3);
+let smoothingFactor = 0.5;
+let smoothInitialized = false;
+
+function buildSkeleton() {
+  if (keypointMesh) { scene.remove(keypointMesh); keypointMesh.geometry.dispose(); keypointMesh.material.dispose(); }
+  for (const bl of boneLinesArr) { scene.remove(bl.mesh); bl.mesh.geometry.dispose(); bl.mesh.material.dispose(); }
+  boneLinesArr.length = 0;
+
+  const sphereGeo = new THREE.SphereGeometry(0.008, 8, 6);
+  const sphereMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee });
+  keypointMesh = new THREE.InstancedMesh(sphereGeo, sphereMat, NUM_KP);
+  scene.add(keypointMesh);
+
+  for (const group of BONE_GROUPS) {
+    const numBones = group.bones.length;
+    const posArr = new Float32Array(numBones * 2 * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    const mat = new THREE.LineBasicMaterial({ color: group.color, linewidth: 1 });
+    const mesh = new THREE.LineSegments(geo, mat);
+    scene.add(mesh);
+    boneLinesArr.push({ mesh, bones: group.bones, posAttr: geo.attributes.position });
+  }
+}
+
+function computeRawPositions(frameIndex) {
+  const offset = frameIndex * NUM_KP * 3;
+  for (let i = 0; i < NUM_KP; i++) {
+    const base = offset + i * 3;
+    rawPositions[i * 3]     = -(animData.data[base]     - centerOffset.x);
+    rawPositions[i * 3 + 1] = -animData.data[base + 1] - centerOffset.y;
+    rawPositions[i * 3 + 2] = -(animData.data[base + 2] - centerOffset.z);
+  }
+}
+
+function resetSmoothing() {
+  framePositions.set(rawPositions);
+  smoothInitialized = true;
+}
+
+function updateFrame(frameIndex, snap) {
+  computeRawPositions(frameIndex);
+
+  if (!smoothInitialized || snap || smoothingFactor === 0) {
+    framePositions.set(rawPositions);
+    smoothInitialized = true;
+  } else {
+    const alpha = 1 - smoothingFactor;
+    for (let i = 0; i < rawPositions.length; i++) {
+      framePositions[i] += (rawPositions[i] - framePositions[i]) * alpha;
+    }
+  }
+
+  for (let i = 0; i < NUM_KP; i++) {
+    dummy.position.set(framePositions[i*3], framePositions[i*3+1], framePositions[i*3+2]);
+    dummy.updateMatrix();
+    keypointMesh.setMatrixAt(i, dummy.matrix);
+  }
+  keypointMesh.instanceMatrix.needsUpdate = true;
+
+  for (const bl of boneLinesArr) {
+    const arr = bl.posAttr.array;
+    for (let b = 0; b < bl.bones.length; b++) {
+      const [a, e] = bl.bones[b];
+      const idx = b * 6;
+      arr[idx]   = framePositions[a*3];
+      arr[idx+1] = framePositions[a*3+1];
+      arr[idx+2] = framePositions[a*3+2];
+      arr[idx+3] = framePositions[e*3];
+      arr[idx+4] = framePositions[e*3+1];
+      arr[idx+5] = framePositions[e*3+2];
+    }
+    bl.posAttr.needsUpdate = true;
+  }
+}
+
+// ===== Animation State =====
+let animData = null;
+const centerOffset = { x: 0, y: 0, z: 0 };
+
+const state = {
+  playing: false,
+  currentFrame: 0,
+  totalFrames: 0,
+  fps: 60,
+  speed: 1,
+  loop: true,
+};
+
+let lastTimestamp = 0;
+let accumulator = 0;
+
+// ===== Video =====
+const elVideo = document.getElementById('video-player');
+let hasVideo = false;
+
+function syncVideoTime() {
+  if (!hasVideo || !elVideo.src) return;
+  const t = state.currentFrame / state.fps;
+  if (Math.abs(elVideo.currentTime - t) > 0.1) {
+    elVideo.currentTime = t;
+  }
+}
+
+function syncVideoPlay() {
+  if (!hasVideo || !elVideo.src) return;
+  if (state.playing) {
+    elVideo.playbackRate = state.speed;
+    elVideo.play().catch(() => {});
+  } else {
+    elVideo.pause();
+  }
+}
+
+function syncVideoSpeed() {
+  if (!hasVideo || !elVideo.src) return;
+  elVideo.playbackRate = state.speed;
+}
+
+// ===== Animation Loop =====
+function animate(timestamp) {
+  requestAnimationFrame(animate);
+
+  if (state.playing && animData) {
+    const dt = timestamp - lastTimestamp;
+    accumulator += dt;
+    const frameDuration = 1000 / (state.fps * state.speed);
+    while (accumulator >= frameDuration) {
+      accumulator -= frameDuration;
+      state.currentFrame++;
+      if (state.currentFrame >= state.totalFrames) {
+        if (state.loop) {
+          state.currentFrame = 0;
+          if (hasVideo) {
+            elVideo.currentTime = 0;
+            elVideo.play().catch(() => {});
+          }
+        } else {
+          state.currentFrame = state.totalFrames - 1;
+          state.playing = false;
+          syncVideoPlay();
+          updatePlayButton();
+          break;
+        }
+      }
+    }
+    updateFrame(state.currentFrame);
+    updateUI();
+  }
+
+  lastTimestamp = timestamp;
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ===== UI =====
+const elDropzone = document.getElementById('dropzone');
+const elControls = document.getElementById('controls');
+const elPlay = document.getElementById('btn-play');
+const elTimeline = document.getElementById('timeline');
+const elFrameDisplay = document.getElementById('frame-display');
+const elFps = document.getElementById('sel-fps');
+const elSpeed = document.getElementById('sel-speed');
+const elLoop = document.getElementById('btn-loop');
+const elSmooth = document.getElementById('sel-smooth');
+const elFileInput = document.getElementById('file-input');
+const elFilename = document.getElementById('filename');
+const elMute = document.getElementById('btn-mute');
+
+function updatePlayButton() {
+  elPlay.innerHTML = state.playing ? '&#9646;&#9646;' : '&#9654;';
+}
+
+function updateUI() {
+  elTimeline.value = state.currentFrame;
+  elFrameDisplay.textContent = `${state.currentFrame + 1} / ${state.totalFrames}`;
+}
+
+function togglePlay() {
+  if (!animData) return;
+  state.playing = !state.playing;
+  if (state.playing) {
+    accumulator = 0;
+    lastTimestamp = performance.now();
+  }
+  updatePlayButton();
+  syncVideoPlay();
+}
+
+function stepFrame(delta) {
+  if (!animData) return;
+  state.playing = false;
+  updatePlayButton();
+  syncVideoPlay();
+  state.currentFrame = Math.max(0, Math.min(state.totalFrames - 1, state.currentFrame + delta));
+  updateFrame(state.currentFrame, true);
+  updateUI();
+  syncVideoTime();
+}
+
+// Extract basename from filename (strip path and extension)
+function extractBasename(filename) {
+  return filename.replace(/^.*[\\/]/, '').replace(/\.sam3dbody$/, '');
+}
+
+async function handleFile(file, basename) {
+  try {
+    animData = await loadNPZ(file);
+    state.totalFrames = animData.numFrames;
+    state.currentFrame = 0;
+
+    let sx = 0, sy = 0, sz = 0;
+    for (let i = 0; i < NUM_KP; i++) {
+      sx += animData.data[i * 3];
+      sy += -animData.data[i * 3 + 1];
+      sz += animData.data[i * 3 + 2];
+    }
+    centerOffset.x = sx / NUM_KP;
+    centerOffset.y = sy / NUM_KP;
+    centerOffset.z = sz / NUM_KP;
+
+    smoothInitialized = false;
+    buildSkeleton();
+    updateFrame(0, true);
+
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < NUM_KP; i++) {
+      const y = framePositions[i * 3 + 1];
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const height = maxY - minY;
+    const midY = (maxY + minY) / 2;
+    camera.position.set(0, midY, height * 1.8);
+    controls.target.set(0, midY, 0);
+    controls.update();
+
+    scene.children.forEach(c => { if (c instanceof THREE.GridHelper) c.position.y = minY; });
+
+    // Determine basename for video
+    const bn = basename || extractBasename(file.name);
+
+    // Set video source
+    const videoUrl = `https://media.signcollect.nl/${bn}.mp4`;
+    elVideo.src = videoUrl;
+    elVideo.currentTime = 0;
+    elVideo.playbackRate = state.speed;
+    hasVideo = true;
+
+    // Switch to split layout
+    switchToSplitLayout(true);
+
+    elTimeline.max = state.totalFrames - 1;
+    elTimeline.value = 0;
+    elDropzone.classList.add('hidden');
+    elControls.classList.add('visible');
+    elFilename.textContent = bn;
+    elFilename.style.display = 'block';
+    updateUI();
+
+    // Auto-play
+    state.playing = true;
+    accumulator = 0;
+    lastTimestamp = performance.now();
+    updatePlayButton();
+    syncVideoPlay();
+  } catch (err) {
+    alert('Error loading file: ' + err.message);
+    console.error(err);
+  }
+}
+
+// ===== Sidebar =====
+const elSidebar = document.getElementById('sidebar');
+const elSidebarOverlay = document.getElementById('sidebar-overlay');
+const elSidebarTree = document.getElementById('sidebar-tree');
+let fileTree = null;
+
+const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function toggleSidebar(open) {
+  const isOpen = elSidebar.classList.contains('open');
+  const shouldOpen = open !== undefined ? open : !isOpen;
+  elSidebar.classList.toggle('open', shouldOpen);
+  elSidebarOverlay.classList.toggle('visible', shouldOpen);
+}
+
+function buildTree(data) {
+  const container = document.createDocumentFragment();
+
+  for (const year of Object.keys(data)) {
+    const yearDiv = document.createElement('div');
+    yearDiv.className = 'tree-year';
+
+    const yearLabel = document.createElement('div');
+    yearLabel.className = 'tree-label';
+    yearLabel.textContent = year;
+    yearDiv.appendChild(yearLabel);
+
+    const yearChildren = document.createElement('div');
+    yearChildren.className = 'tree-children';
+
+    for (const month of Object.keys(data[year])) {
+      const monthDiv = document.createElement('div');
+      monthDiv.className = 'tree-month';
+
+      const monthLabel = document.createElement('div');
+      monthLabel.className = 'tree-label';
+      const monthName = MONTH_NAMES[parseInt(month, 10)] || month;
+      monthLabel.textContent = monthName;
+      monthDiv.appendChild(monthLabel);
+
+      const monthChildren = document.createElement('div');
+      monthChildren.className = 'tree-children';
+
+      for (const day of Object.keys(data[year][month])) {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'tree-day';
+
+        const dayLabel = document.createElement('div');
+        dayLabel.className = 'tree-label';
+        dayLabel.textContent = `${parseInt(day, 10)}`;
+        dayDiv.appendChild(dayLabel);
+
+        const dayChildren = document.createElement('div');
+        dayChildren.className = 'tree-children';
+
+        for (const basename of data[year][month][day]) {
+          const fileEl = document.createElement('div');
+          fileEl.className = 'tree-file';
+          fileEl.textContent = basename;
+          fileEl.dataset.basename = basename;
+          fileEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            loadFromSidebar(basename);
+          });
+          dayChildren.appendChild(fileEl);
+        }
+
+        dayLabel.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dayChildren.classList.toggle('expanded');
+          dayDiv.classList.toggle('expanded-marker');
+        });
+
+        dayDiv.appendChild(dayChildren);
+        monthChildren.appendChild(dayDiv);
+      }
+
+      monthLabel.addEventListener('click', (e) => {
+        e.stopPropagation();
+        monthChildren.classList.toggle('expanded');
+        monthDiv.classList.toggle('expanded-marker');
+      });
+
+      monthDiv.appendChild(monthChildren);
+      yearChildren.appendChild(monthDiv);
+    }
+
+    yearLabel.addEventListener('click', (e) => {
+      e.stopPropagation();
+      yearChildren.classList.toggle('expanded');
+      yearDiv.classList.toggle('expanded-marker');
+    });
+
+    yearDiv.appendChild(yearChildren);
+    container.appendChild(yearDiv);
+  }
+
+  return container;
+}
+
+async function fetchFileList() {
+  try {
+    const res = await fetch('api/files.php');
+    fileTree = await res.json();
+    elSidebarTree.innerHTML = '';
+    elSidebarTree.appendChild(buildTree(fileTree));
+  } catch (err) {
+    document.getElementById('sidebar-loading').textContent = 'Failed to load file list.';
+    console.error('Failed to fetch file list:', err);
+  }
+}
+
+async function loadFromSidebar(basename) {
+  // Highlight active file
+  elSidebarTree.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
+  const activeEl = elSidebarTree.querySelector(`.tree-file[data-basename="${basename}"]`);
+  if (activeEl) activeEl.classList.add('active');
+
+  toggleSidebar(false);
+
+  try {
+    const url = `/gebarenoverleg_media/studioFilesMini/raw/${basename}.sam3dbody`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+
+    // Wrap in a File-like object for loadNPZ
+    const blob = new Blob([arrayBuffer]);
+    const file = new File([blob], `${basename}.sam3dbody`);
+
+    await handleFile(file, basename);
+  } catch (err) {
+    alert('Error loading file: ' + err.message);
+    console.error(err);
+  }
+}
+
+// ===== Init UI =====
+function initUI() {
+  // Sidebar controls
+  document.getElementById('btn-hamburger').addEventListener('click', () => toggleSidebar());
+  document.getElementById('btn-sidebar-close').addEventListener('click', () => toggleSidebar(false));
+  elSidebarOverlay.addEventListener('click', () => toggleSidebar(false));
+
+  // Drag and drop
+  document.addEventListener('dragover', e => {
+    e.preventDefault();
+    elDropzone.classList.remove('hidden');
+    elDropzone.classList.add('dragover');
+  });
+  document.addEventListener('dragleave', e => {
+    if (e.relatedTarget === null) elDropzone.classList.remove('dragover');
+  });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    elDropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  // Click to browse
+  elDropzone.addEventListener('click', () => elFileInput.click());
+  elFileInput.addEventListener('change', () => {
+    if (elFileInput.files[0]) handleFile(elFileInput.files[0]);
+  });
+
+  // Play/Pause
+  elPlay.addEventListener('click', togglePlay);
+
+  // Timeline scrub
+  elTimeline.addEventListener('input', () => {
+    if (!animData) return;
+    state.currentFrame = parseInt(elTimeline.value);
+    updateFrame(state.currentFrame, true);
+    updateUI();
+    syncVideoTime();
+  });
+
+  // FPS
+  elFps.addEventListener('change', () => {
+    state.fps = parseInt(elFps.value);
+  });
+
+  // Speed
+  elSpeed.addEventListener('change', () => {
+    state.speed = parseFloat(elSpeed.value);
+    syncVideoSpeed();
+  });
+
+  // Smoothing
+  elSmooth.addEventListener('change', () => {
+    smoothingFactor = parseFloat(elSmooth.value);
+  });
+
+  // Loop
+  elLoop.addEventListener('click', () => {
+    state.loop = !state.loop;
+    elLoop.classList.toggle('active', state.loop);
+  });
+
+  // Mute toggle
+  elMute.addEventListener('click', () => {
+    elVideo.muted = !elVideo.muted;
+    elMute.textContent = elVideo.muted ? 'Muted' : 'Sound';
+    elMute.classList.toggle('active', !elVideo.muted);
+  });
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+    switch (e.code) {
+      case 'Space':
+        e.preventDefault();
+        togglePlay();
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        stepFrame(-1);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        stepFrame(1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        stepFrame(-10);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        stepFrame(10);
+        break;
+    }
+  });
+
+  // Fetch file list for sidebar
+  fetchFileList();
+}
+
+// ===== Init =====
+initScene();
+initUI();
+requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>
