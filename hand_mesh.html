@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pure‑CSS 3D Hand (drag to rotate)</title>
+  <style>
+    :root {
+      /* rotation angles controlled from JS */
+      --rx: -15deg;
+      --ry: 20deg;
+
+      /* simple skin‑tone palette */
+      --skin: #f2c8b3;
+      --skin-dark: #d8b29e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      height: 100vh;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+    }
+
+    /* 3‑D scene container with perspective */
+    .scene {
+      width: 420px;
+      height: 420px;
+      perspective: 900px;
+      cursor: grab;
+    }
+
+    /* the whole hand is one preserved‑3D group */
+    .hand {
+      position: relative;
+      top: 50%;
+      left: 50%;
+      width: 160px;
+      height: 220px;
+      transform-style: preserve-3d;
+      transform: translate(-50%, -50%) rotateX(var(--rx)) rotateY(var(--ry));
+      transition: transform 0.1s linear;
+    }
+
+    /* every visible piece of geometry lives in .segment */
+    .segment {
+      position: absolute;
+      width: var(--w, 22px);
+      height: var(--h, 80px);
+      transform-style: preserve-3d;
+      border-radius: 8px;
+      background: linear-gradient(145deg, var(--skin) 0%, var(--skin-dark) 100%);
+    }
+
+    /* ‑‑‑ Palm ‑‑‑ */
+    .palm {
+      --w: 160px;
+      --h: 90px;
+      bottom: 0;
+      left: 0;
+      border-radius: 14px;
+    }
+
+    /* ‑‑‑ Fingers (one prism per finger for simplicity) ‑‑‑ */
+    .finger {
+      --w: 24px;
+      --h: 95px;
+      bottom: 90px;               /* on top of the palm */
+      transform-origin: bottom center;
+    }
+
+    .finger1 { left: 8px; }
+    .finger2 { left: 44px; }
+    .finger3 { left: 80px; }
+    .finger4 { left: 116px; }
+
+    /* extra pseudo‑element makes the finger feel less flat */
+    .finger::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: inherit;
+      transform-origin: bottom center;
+      transform: translateZ(-14px) rotateX(-18deg);
+    }
+
+    /* ‑‑‑ Thumb (angled & shorter) ‑‑‑ */
+    .thumb {
+      --w: 28px;
+      --h: 70px;
+      bottom: 50px;
+      left: -18px;
+      transform: rotateZ(-32deg) translateZ(12px);
+    }
+
+    .thumb::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: inherit;
+      transform-origin: bottom center;
+      transform: translateZ(-10px) rotateX(-22deg);
+    }
+  </style>
+</head>
+<body>
+  <div class="scene">
+    <div class="hand" id="hand">
+      <!-- palm -->
+      <div class="segment palm"></div>
+      <!-- thumb -->
+      <div class="segment thumb"></div>
+      <!-- fingers -->
+      <div class="segment finger finger1"></div>
+      <div class="segment finger finger2"></div>
+      <div class="segment finger finger3"></div>
+      <div class="segment finger finger4"></div>
+    </div>
+  </div>
+
+  <script>
+    /* Simple drag‑to‑rotate logic – updates the two CSS custom props */
+    const scene = document.querySelector('.scene');
+    const root  = document.documentElement;
+
+    let dragging = false;
+    let startX, startY;
+
+    scene.addEventListener('pointerdown', e => {
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      scene.setPointerCapture(e.pointerId);
+      scene.style.cursor = 'grabbing';
+    });
+
+    scene.addEventListener('pointermove', e => {
+      if (!dragging) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      /* read current numeric values, add delta, and write back */
+      const curRy = parseFloat(getComputedStyle(root).getPropertyValue('--ry')) || 0;
+      const curRx = parseFloat(getComputedStyle(root).getPropertyValue('--rx')) || 0;
+      root.style.setProperty('--ry', `${curRy + dx * 0.35}deg`);
+      root.style.setProperty('--rx', `${curRx - dy * 0.35}deg`);
+    });
+
+    window.addEventListener('pointerup', () => {
+      dragging = false;
+      scene.style.cursor = 'grab';
+    });
+  </script>
+</body>
+</html>
