@@ -16,7 +16,7 @@ experimental
 Not in repos.tsv; copy the tree to an Apache+PHP dir; `api/` must be writable for `cache.json` (delete it to force a rescan). Locally, any static server plus drag-and-drop works.
 
 ## Configuration
-Hardcoded: `/web/gebarenoverleg_media/studioFilesMini/raw/` (`api/files.php`), `/gebarenoverleg_media/studioFilesMini/raw/<take>.sam3dbody` and `https://media.signcollect.nl/<take>.mp4` (`viewer.html`).
+`<root>/gebarenoverleg_media/studioFilesMini/raw/` (`api/files.php`; `<root>` from vendored `sc_paths.php` (from signlab_signcollect-lib; edit it there): `SC_WEB_ROOT`, default `/web`). Hardcoded: `/gebarenoverleg_media/studioFilesMini/raw/<take>.sam3dbody` and `https://media.signcollect.nl/<take>.mp4` (`viewer.html`).
 
 ## Dependencies
 `.sam3dbody` files from the signlab_s3b_server pipeline; `media.signcollect.nl`; JSZip 3.10.1 (cdnjs) and three.js 0.160.0 (unpkg) in the browser.
