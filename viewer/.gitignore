@@ -1,0 +1,45 @@
+# --- credentials: never commit ---
+.env
+.env.*
+!.env.example
+mysql_config.php
+mysql_config_test.php
+mysql_config.example.php.keep
+config.php
+config.php.backup*
+*.pem
+*.key
+
+# --- dependencies ---
+node_modules/
+vendor/
+
+# --- logs, caches, os cruft ---
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# --- large assets excluded from git (GitHub rejects >100MB) ---
+
+# --- logs, backups, caches and generated data (added 2026-08-26 cleanup) ---
+*.log
+*.bak
+*.bak.*
+*.bak-*
+*.bak_*
+*.backup
+*.backup.*
+*.backup_*
+*_backup_*
+*.orig
+*.old
+*.outdated
+*.tmp
+__pycache__/
+*.pyc
+.claude/
+.mcp.json
+.playwright-mcp/
+.superpowers/
+api/cache.json
