@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/sc_paths.php';
 header('Content-Type: application/json');
 
-$uploadsDir = '/web/gebarenoverleg_media/studioFilesMini/raw';
+$uploadsDir = sc_path('media_raw');
 $filesAvailable = [];
 
 if (!is_dir($uploadsDir) || !is_readable($uploadsDir)) {

@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/sc_paths.php';
 
 header('Content-Type: application/json');
 
-$targetDir = '/web/gebarenoverleg_media/studioFilesMini/raw/';
+$targetDir = sc_dir('media_raw');
 $response = ['status' => 'error', 'message' => 'Invalid request.'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

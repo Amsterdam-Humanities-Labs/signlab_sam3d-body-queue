@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/sc_paths.php';
 header('Content-Type: application/json');
 
 // Directory containing the .mp4 files
-$directory = '/web/gebarenoverleg_media/studioFilesMini/raw';
+$directory = sc_path('media_raw');
 $url = 'https://signcollect.nl/gebarenoverleg_media/studioFilesMini/raw/';
 
 // Get all .mp4 files

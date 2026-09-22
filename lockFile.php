@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/sc_paths.php';
 header('Content-Type: application/json');
 
 // Get the filename from the request
@@ -9,7 +10,7 @@ if (!$filename) {
     exit;
 }
 
-$mediaDir = '/web/gebarenoverleg_media/studioFilesMini/raw';
+$mediaDir = sc_path('media_raw');
 
 // Ensure the filename is sanitized (only allow mp4 files)
 if (!preg_match('/^[a-zA-Z0-9_\-]+\.mp4$/', $filename)) {
