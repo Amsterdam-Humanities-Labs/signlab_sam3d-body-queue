@@ -1,22 +1,26 @@
-# signlab_s3b_viewer
-Three.js viewer for `.sam3dbody` reconstructions, played beside the source video.
+# s3b_server/viewer
+Three.js viewer that plays `.sam3dbody` reconstructions beside the source video. Until Sep 2026 this was the separate repo signlab_s3b_viewer.
 
 ## What it does
-- `viewer.html`: unzips a `.sam3dbody` (JSZip), parses `body_keypoints_3d.npy`, animates the skeleton in sync with the video. Play/pause, timeline, 24/30/60 fps, 0.25-2x speed, loop, smoothing, mute.
-- Load by drag-and-drop or from the sidebar.
-- `api/files.php`: globs `*.sam3dbody`, builds a year/month/day tree (56,036 takes, newest Feb 2026), caches `api/cache.json` for 7 days.
+- `viewer.html` unzips a `.sam3dbody` (JSZip), parses `body_keypoints_3d.npy` and animates the skeleton in sync with the video.
+- Controls: play/pause, timeline, 24/30/60 fps, speed 0.25-2x, loop, smoothing, mute.
+- Load a file by drag-and-drop or from the sidebar.
+- `api/files.php` finds all `*.sam3dbody` files and builds a year/month/day tree (56,036 recordings, newest Feb 2026). It caches the tree in `api/cache.json` for 7 days.
 
 ## Where it runs
-core (production): `/web/s3b_viewer`, https://signcollect.nl/s3b_viewer/viewer.html. Not on the demo hosts.
+Core server: `/web/s3b_viewer`, https://signcollect.nl/s3b_viewer/viewer.html (deployed from the old repo). Deploying signlab_s3b_server puts it at `/web/s3b_server/viewer/`. Not on the demo hosts.
 
 ## Status
-experimental
+Experimental.
 
 ## How to run / deploy
-Not in repos.tsv; copy the tree to an Apache+PHP dir; `api/` must be writable for `cache.json` (delete it to force a rescan). Locally, any static server plus drag-and-drop works.
+Copy the folder to an Apache + PHP directory. `api/` must be writable for `cache.json`; delete that file to force a rescan. Locally, any static server with drag-and-drop works.
 
 ## Configuration
-`<root>/gebarenoverleg_media/studioFilesMini/raw/` (`api/files.php`; `<root>` from vendored `sc_paths.php` (from signlab_signcollect-lib; edit it there): `SC_WEB_ROOT`, default `/web`). Hardcoded: `/gebarenoverleg_media/studioFilesMini/raw/<take>.sam3dbody` and `https://media.signcollect.nl/<take>.mp4` (`viewer.html`).
+- `api/files.php` reads `<root>/gebarenoverleg_media/studioFilesMini/raw/`. `<root>` comes from the vendored `sc_paths.php`: `SC_WEB_ROOT`, default `/web`. Edit it in [signlab_signcollect-lib](https://github.com/Amsterdam-Humanities-Labs/signlab_signcollect-lib), not here.
+- Hardcoded in `viewer.html`: `/gebarenoverleg_media/studioFilesMini/raw/<take>.sam3dbody` and `https://media.signcollect.nl/<take>.mp4`.
 
 ## Dependencies
-`.sam3dbody` files from the signlab_s3b_server pipeline; `media.signcollect.nl`; JSZip 3.10.1 (cdnjs) and three.js 0.160.0 (unpkg) in the browser.
+- `.sam3dbody` files from the queue in the parent folder (`../README.md`).
+- Videos from `media.signcollect.nl`.
+- In the browser: JSZip 3.10.1 (cdnjs) and three.js 0.160.0 (unpkg).
