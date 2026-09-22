@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../sc_paths.php';
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
@@ -12,7 +13,7 @@ if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheMaxAge) 
 }
 
 // Scan for .sam3dbody files
-$dir = '/web/gebarenoverleg_media/studioFilesMini/raw/';
+$dir = sc_dir('media_raw');
 $files = glob($dir . '*.sam3dbody');
 
 $tree = [];
