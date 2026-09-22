@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/auth.php';
+s3b_require_token();   // worker only: X-Api-Token
 
 header('Content-Type: application/json');
 
