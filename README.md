@@ -20,7 +20,7 @@ Not in repos.tsv; copy the tree to `/web/s3b_server`. No build step, nothing her
 
 ## Configuration
 - `S3B_WORKER_TOKEN`: in the signcollect-lib env file (`/web/.env`) when `/web/lib` exists, else Apache `SetEnv`. Unset = writers refuse everything.
-- `/web/gebarenoverleg_media/studioFilesMini/raw/` is hardcoded in all PHP endpoints.
+- `<root>/gebarenoverleg_media/studioFilesMini/raw/` in all PHP endpoints; `<root>` comes from vendored `sc_paths.php` (from signlab_signcollect-lib; edit it there): `SC_WEB_ROOT`, default `/web`.
 
 ## Dependencies
 - `studioFilesMini/raw/`, shared with signlab_s3b_viewer (browses results) and signlab_s3b_glb (VTT sidecars).
