@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/sc_paths.php';
 
 header('Content-Type: application/json');
 
-$mediaDir = '/web/gebarenoverleg_media/studioFilesMini/raw';
+$mediaDir = sc_path('media_raw');
 $filesAvailable = [];
 $limit = 1000; // Increased limit to 1000
 $count = 0;
