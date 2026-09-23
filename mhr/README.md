@@ -1,4 +1,4 @@
-# s3b_server/mhr
+# signlab_sam3d-body-queue/mhr
 Notes on the MHR avatar files kept on the core server. No file is versioned here (no Git LFS). Until Sep 2026 this was the separate repo signlab_mhr.
 
 ## What it does
