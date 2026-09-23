@@ -8,7 +8,7 @@ Three.js viewer that plays `.sam3dbody` reconstructions beside the source video.
 - `api/files.php` finds all `*.sam3dbody` files and builds a year/month/day tree (56,036 recordings, newest Feb 2026). It caches the tree in `api/cache.json` for 7 days.
 
 ## Where it runs
-Core server: `/web/s3b_viewer`, https://signcollect.nl/s3b_viewer/viewer.html (deployed from the old repo). Deploying signlab_s3b_server puts it at `/web/s3b_server/viewer/`. Not on the demo hosts.
+Core server: `/web/s3b_viewer`, https://signcollect.nl/s3b_viewer/viewer.html (deployed from the old repo). Deploying signlab_sam3d-body-queue puts it at `/web/s3b_server/viewer/`. Not on the demo hosts.
 
 ## Status
 Experimental.
