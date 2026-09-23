@@ -1,4 +1,4 @@
-# s3b_server/viewer
+# signlab_sam3d-body-queue/viewer
 Three.js viewer that plays `.sam3dbody` reconstructions beside the source video. Until Sep 2026 this was the separate repo signlab_s3b_viewer.
 
 ## What it does
