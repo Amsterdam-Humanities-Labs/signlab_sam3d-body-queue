@@ -1,4 +1,4 @@
-# signlab_s3b_server
+# signlab_sam3d-body-queue
 Work queue that hands studio recordings to an off-site SAM 3D Body GPU worker and takes the reconstructions back.
 
 ## What it does
@@ -25,5 +25,5 @@ Experimental. Nobody knows whether the GPU worker still polls; it must now send 
 - All PHP endpoints use `<root>/gebarenoverleg_media/studioFilesMini/raw/`. `<root>` comes from the vendored `sc_paths.php`: `SC_WEB_ROOT`, default `/web`. Edit it in [signlab_signcollect-lib](https://github.com/Amsterdam-Humanities-Labs/signlab_signcollect-lib), not here.
 
 ## Dependencies
-- `studioFilesMini/raw/`, shared with `viewer/` and [signlab_s3b_glb](https://github.com/Amsterdam-Humanities-Labs/signlab_s3b_glb) (VTT sidecars).
+- `studioFilesMini/raw/`, shared with `viewer/` and [signlab_body-animation-viewer](https://github.com/Amsterdam-Humanities-Labs/signlab_body-animation-viewer) (VTT sidecars).
 - An external GPU worker running Meta's SAM 3D Body. Its code is in no signlab repo.
