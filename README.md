@@ -2,30 +2,28 @@
 Work queue that hands studio recordings to an off-site SAM 3D Body GPU worker and takes the reconstructions back.
 
 ## What it does
-- `index.php`: next jobs; up to 1000 `.mp4` in `studioFilesMini/raw/` with no `.sam3dbody` and no `.s3b_lock`, prioritised `M20…` > `M…` > `L`/`R` > `A`/`B`, shuffled per band; skips >20 MB, `(` and `_h264`.
-- `lockFile.php`: claims a take by writing `<take>.s3b_lock` (refuses if lock or result exists).
-- `upload.php`: accepts `<take>.sam3dbody` into the same dir. `list_uploads.php`, `get_sam3dbody_files.php`: JSON listings.
-- `lockFile.php` and `upload.php` (the two writers) need header `X-Api-Token: <S3B_WORKER_TOKEN>` (`auth.php`); the three read-only listings stay open.
-- Leftovers from the HAMER research: `top50.html` (+ `mod.js`, needs untracked `top50_hand_clusters.json`, 346 MB) and `hand_mesh.html` (CSS 3D hand).
-- 56,036 `.sam3dbody` results exist, newest Feb 2026. The clustering scripts were removed; see git history.
+- `index.php` lists the next jobs: up to 1000 `.mp4` files in `studioFilesMini/raw/` with no `.sam3dbody` and no `.s3b_lock`. Priority is `M20…`, then `M…`, then `L`/`R`, then `A`/`B`, shuffled within each band. It skips files over 20 MB and names with `(` or `_h264`.
+- `lockFile.php` (POST `filename=<take>.mp4`) claims a recording by writing `<take>.s3b_lock`. It refuses if a lock or result already exists.
+- `upload.php` (POST, file field `sam3dbodyFile`) stores `<take>.sam3dbody` in the same folder.
+- `list_uploads.php` and `get_sam3dbody_files.php` both list the `.mp4` files in that folder as JSON, despite their names. The first returns names; the second returns names with URLs and skips names starting with `#`.
+- The two writers, `lockFile.php` and `upload.php`, need the header `X-Api-Token: <S3B_WORKER_TOKEN>` (`auth.php`). The three read-only listings stay open.
+- `viewer/` browses the results (was signlab_s3b_viewer). `mhr/` holds notes on the MHR model (was signlab_mhr). Each has its own README.
+- Left over from the HAMER research: `top50.html` (with `mod.js`; needs the untracked 346 MB `top50_hand_clusters.json`) and `hand_mesh.html` (CSS 3D hand). The clustering scripts are gone; see git history.
+- 56,036 `.sam3dbody` results exist. The newest is from Feb 2026.
 
 ## Where it runs
-core (production): `/web/s3b_server`, https://signcollect.nl/s3b_server/. Not on the demo hosts.
+Core server: `/web/s3b_server`, https://signcollect.nl/s3b_server/. Not on the demo hosts.
 
 ## Status
-experimental (whether the GPU worker still polls is unknown; it must now send `X-Api-Token`)
+Experimental. Nobody knows whether the GPU worker still polls; it must now send `X-Api-Token`.
 
 ## How to run / deploy
-Not in repos.tsv; copy the tree to `/web/s3b_server`. No build step, nothing here needs to be writable.
+`repos.tsv` does not list it. Copy the tree to `/web/s3b_server`. There is no build step. Only `viewer/api/` needs to be writable (see `viewer/README.md`).
 
 ## Configuration
-- `S3B_WORKER_TOKEN`: in the signcollect-lib env file (`/web/.env`) when `/web/lib` exists, else Apache `SetEnv`. Unset = writers refuse everything.
-- `<root>/gebarenoverleg_media/studioFilesMini/raw/` in all PHP endpoints; `<root>` comes from vendored `sc_paths.php` (from signlab_signcollect-lib; edit it there): `SC_WEB_ROOT`, default `/web`.
+- `S3B_WORKER_TOKEN`: in the signcollect-lib env file (`/web/.env`) when `/web/lib` exists, else an Apache `SetEnv`. If it is unset, the writers refuse every request.
+- All PHP endpoints use `<root>/gebarenoverleg_media/studioFilesMini/raw/`. `<root>` comes from the vendored `sc_paths.php`: `SC_WEB_ROOT`, default `/web`. Edit it in [signlab_signcollect-lib](https://github.com/Amsterdam-Humanities-Labs/signlab_signcollect-lib), not here.
 
 ## Dependencies
-- `studioFilesMini/raw/`, shared with `viewer/` (browses results; was signlab_s3b_viewer) and signlab_s3b_glb (VTT sidecars).
-- External GPU worker running Meta's SAM 3D Body; its code is in no signlab repo.
-
-## Subdirectories
-- `viewer/` — result browser (was signlab_s3b_viewer)
-- `mhr/` — notes on the MHR model (was signlab_mhr)
+- `studioFilesMini/raw/`, shared with `viewer/` and [signlab_s3b_glb](https://github.com/Amsterdam-Humanities-Labs/signlab_s3b_glb) (VTT sidecars).
+- An external GPU worker running Meta's SAM 3D Body. Its code is in no signlab repo.
