@@ -27,3 +27,10 @@ Experimental. Nobody knows whether the GPU worker still polls; it must now send 
 ## Dependencies
 - `studioFilesMini/raw/`, shared with `viewer/` and [signlab_body-animation-viewer](https://github.com/Amsterdam-Humanities-Labs/signlab_body-animation-viewer) (VTT sidecars).
 - An external GPU worker running Meta's SAM 3D Body. Its code is in no signlab repo.
+
+## License and citation
+
+Apache License 2.0, copyright University of Amsterdam: see [LICENSE](LICENSE) and
+[NOTICE](NOTICE). You may use it, also commercially, as long as you credit
+Gomer Otterspeer / University of Amsterdam as the source. To cite it, use
+[CITATION.cff](CITATION.cff) (the *Cite this repository* button on GitHub) or the DOI [10.21942/uva.33980371](https://doi.org/10.21942/uva.33980371).
